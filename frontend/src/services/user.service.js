@@ -7,6 +7,7 @@ import {
     query,
     where,
     getDocs,
+    getCountFromServer,
     serverTimestamp
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
@@ -275,8 +276,8 @@ export const checkIdentifierExists = async (identifier, role) => {
             where('role', '==', role)
         );
 
-        const querySnapshot = await getDocs(q);
-        return !querySnapshot.empty;
+        const snapshot = await getCountFromServer(q);
+        return snapshot.data().count > 0;
     } catch (error) {
         console.error('Error checking identifier:', error);
         return false;
