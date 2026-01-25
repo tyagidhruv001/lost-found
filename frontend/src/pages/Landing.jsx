@@ -1,48 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { api } from '../services/api';
+import { getItems } from '../services/items.service';
 
 const Landing = () => {
     const navigate = useNavigate();
 
-    // State for latest activity - will be populated from API
-    const [latestActivity, setLatestActivity] = useState([
-        {
-            id: 1,
-            emoji: '🎧',
-            bgColor: 'bg-blue-500/30',
-            title: 'Sony WH-1000XM4',
-            status: 'Found',
-            statusColor: 'text-green-400',
-            location: 'Library Block A',
-            timestamp: new Date(Date.now() - 2 * 60 * 1000) // 2 minutes ago
-        },
-        {
-            id: 2,
-            emoji: '🎒',
-            bgColor: 'bg-purple-500/30',
-            title: 'Black Nike Backpack',
-            status: 'Lost',
-            statusColor: 'text-red-400',
-            location: 'Canteen Area',
-            timestamp: new Date(Date.now() - 15 * 60 * 1000) // 15 minutes ago
-        },
-        {
-            id: 3,
-            emoji: '🔑',
-            bgColor: 'bg-yellow-500/30',
-            title: 'Dorm Keys (Room 304)',
-            status: 'Reunited',
-            statusColor: 'text-green-400',
-            location: null,
-            timestamp: new Date(Date.now() - 60 * 60 * 1000) // 1 hour ago
-        }
-    ]);
+    // State for latest activity
+    const [latestActivity, setLatestActivity] = useState([]);
 
     // Helper function to format relative time
     const getRelativeTime = (timestamp) => {
+        if (!timestamp) return 'Just now';
+        const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
         const now = new Date();
-        const diff = Math.floor((now - new Date(timestamp)) / 1000); // difference in seconds
+        const diff = Math.floor((now - date) / 1000); // difference in seconds
 
         if (diff < 60) return 'Just now';
         if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
@@ -50,23 +21,72 @@ const Landing = () => {
         return `${Math.floor(diff / 86400)}d ago`;
     };
 
-    // TODO: Fetch latest activity from backend API
-    useEffect(() => {
-        // Placeholder for API call
-        // const fetchLatestActivity = async () => {
-        //     try {
-        //         const response = await fetch('/api/items/latest-activity');
-        //         const data = await response.json();
-        //         setLatestActivity(data);
-        //     } catch (error) {
-        //         console.error('Error fetching latest activity:', error);
-        //     }
-        // };
-        // fetchLatestActivity();
+    // Helper functions for UI
+    const getEmojiForCategory = (category) => {
+        const emojiMap = {
+            'electronics': '🎧',
+            'accessories': '🎒',
+            'keys': '🔑',
+            'wallet': '👛',
+            'phone': '📱',
+            'laptop': '💻',
+            'books': '📚',
+            'clothing': '👕',
+            'jewelry': '💍',
+            'cards': '💳',
+            'id-cards': '🪪',
+            'bags': '🎒',
+            'stationery': '✏️',
+            'other': '📦'
+        };
+        return emojiMap[category?.toLowerCase()] || '📦';
+    };
 
-        // Optional: Set up polling for real-time updates every 30 seconds
-        // const interval = setInterval(fetchLatestActivity, 30000);
-        // return () => clearInterval(interval);
+    const getColorForCategory = (category) => {
+        const colorMap = {
+            'electronics': 'bg-blue-500/30',
+            'accessories': 'bg-purple-500/30',
+            'keys': 'bg-yellow-500/30',
+            'wallet': 'bg-pink-500/30',
+            'phone': 'bg-cyan-500/30',
+            'laptop': 'bg-indigo-500/30',
+            'books': 'bg-orange-500/30',
+            'clothing': 'bg-red-500/30',
+            'jewelry': 'bg-emerald-500/30',
+            'cards': 'bg-teal-500/30',
+            'id-cards': 'bg-slate-500/30',
+            'bags': 'bg-purple-500/30',
+            'stationery': 'bg-amber-500/30',
+            'other': 'bg-gray-500/30'
+        };
+        return colorMap[category?.toLowerCase()] || 'bg-gray-500/30';
+    };
+
+    useEffect(() => {
+        const fetchLatestActivity = async () => {
+            try {
+                // Fetch 3 items to match display
+                const items = await getItems({ limit: 3 });
+
+                // Transform to display format
+                const activityData = items.map(item => ({
+                    id: item.id,
+                    emoji: getEmojiForCategory(item.category),
+                    bgColor: getColorForCategory(item.category),
+                    title: item.title,
+                    status: item.type === 'lost' ? 'Lost' : 'Found',
+                    statusColor: item.type === 'lost' ? 'text-red-400' : 'text-green-400',
+                    location: item.location,
+                    timestamp: item.createdAt
+                }));
+
+                setLatestActivity(activityData);
+            } catch (error) {
+                console.error('Error fetching latest activity:', error);
+            }
+        };
+
+        fetchLatestActivity();
     }, []);
 
     const handleGetStarted = () => {

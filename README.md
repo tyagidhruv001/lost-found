@@ -53,12 +53,15 @@ Visit `http://localhost:5173`
 - 🗄️ Firebase Firestore Database
 - 🖼️ Image Upload to Cloudinary
 - 🎭 Role-based Security Rules
+- 👤 User Profile Management
+- 📋 Faculty Verification Dashboard
+- 📝 Lost/Found Item Reporting
+- 🔍 Item Search & Browse
 
 ### 🚧 In Progress
-- User Profile Management
-- Faculty Verification Dashboard
-- Lost/Found Item Reporting
-- Item Search & Browse
+- Real-time Notifications
+- Advanced Search Filters
+- Mobile App Version
 
 ## 🧪 Testing
 
@@ -147,7 +150,6 @@ firebase deploy --only firestore:rules
 
 - OTP emails/SMS currently show in console (for testing)
 - Document OCR verification not implemented (manual review)
-- Faculty verification dashboard pending
 
 ## 🔧 Troubleshooting
 

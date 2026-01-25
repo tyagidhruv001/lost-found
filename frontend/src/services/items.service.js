@@ -101,16 +101,29 @@ export const getItems = async (filters = {}) => {
         }
 
         // Order by creation date (newest first)
-        // NOTE: Temporarily disabled to avoid composite index requirement
-        // Firebase needs a composite index for: status + orderBy(createdAt)
-        // q = query(q, orderBy('createdAt', 'desc'));
+        // Attempt to sort by date, fallback to unordered if index missing
+        let orderedQ = query(q, orderBy('createdAt', 'desc'));
+        if (filters.limit) {
+            orderedQ = query(orderedQ, limit(filters.limit));
+        }
 
-        // Limit results
+        // Fallback query (without sort)
         if (filters.limit) {
             q = query(q, limit(filters.limit));
         }
 
-        const querySnapshot = await getDocs(q);
+        let querySnapshot;
+        try {
+            querySnapshot = await getDocs(orderedQ);
+        } catch (err) {
+            // If failed-precondition (missing index), fallback to unordered
+            if (err.code === 'failed-precondition') {
+                console.warn('⚠️ Missing Firestore index for ordered query. Falling back to unordered fetch.', err.message);
+                querySnapshot = await getDocs(q);
+            } else {
+                throw err;
+            }
+        }
         const items = [];
 
         querySnapshot.forEach((doc) => {
