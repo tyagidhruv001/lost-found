@@ -123,15 +123,18 @@ export const sendOTP = async (userId, type, contact, name = 'User') => {
 
         // Send OTP to requested channels
         const channels = Array.isArray(type) ? type : [type];
+        const promises = [];
 
         for (const channel of channels) {
             const targetContact = typeof contact === 'object' ? contact[channel] : contact;
             if (channel === 'email') {
-                await sendEmailOTPHelper(targetContact, otp, name);
+                promises.push(sendEmailOTPHelper(targetContact, otp, name));
             } else if (channel === 'mobile') {
-                await sendMobileOTPHelper(targetContact, otp, name);
+                promises.push(sendMobileOTPHelper(targetContact, otp, name));
             }
         }
+
+        await Promise.all(promises);
 
         return {
             success: true,
