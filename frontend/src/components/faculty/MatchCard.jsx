@@ -41,14 +41,49 @@ const MatchCard = ({ match }) => {
     };
 
     const handleNotifyStudents = () => {
-        // TODO: Implement notification logic
-        const message = `Match found!\n\nLost: ${lostItem.title}\nFound: ${foundItem.title}\nConfidence: ${score}%`;
+        if (!confirm('Notify both students about this potential match?')) {
+            return;
+        }
 
-        // For now, just show alert - will be replaced with actual notification service
-        if (confirm('Notify both students about this potential match?')) {
-            alert('Notifications sent to:\n' +
-                `- ${lostItem.reportedBy?.email || 'Lost item reporter'}\n` +
-                `- ${foundItem.reportedBy?.email || 'Found item reporter'}`);
+        const recipients = [];
+        const variablesArray = [];
+
+        // 1. Notify student who lost the item
+        if (lostItem.reportedBy && lostItem.reportedBy.email) {
+            recipients.push(lostItem.reportedBy);
+            variablesArray.push({
+                studentName: lostItem.reportedBy.name || 'Student',
+                itemType: 'Lost',
+                yourItem: lostItem.title,
+                yourDate: formatDate(lostItem.createdAt),
+                matchedItem: foundItem.title,
+                matchScore: score,
+                otherStudentName: foundItem.reportedBy?.name || 'A student',
+                oppositeAction: 'finding',
+                portalUrl: window.location.origin
+            });
+        }
+
+        // 2. Notify student who found the item
+        if (foundItem.reportedBy && foundItem.reportedBy.email) {
+            recipients.push(foundItem.reportedBy);
+            variablesArray.push({
+                studentName: foundItem.reportedBy.name || 'Student',
+                itemType: 'Found',
+                yourItem: foundItem.title,
+                yourDate: formatDate(foundItem.createdAt),
+                matchedItem: lostItem.title,
+                matchScore: score,
+                otherStudentName: lostItem.reportedBy?.name || 'A student',
+                oppositeAction: 'losing',
+                portalUrl: window.location.origin
+            });
+        }
+
+        if (recipients.length > 0) {
+            sendBulkNotifications(recipients, 'match_found', variablesArray);
+        } else {
+            alert('No student emails available for notification.');
         }
     };
 
