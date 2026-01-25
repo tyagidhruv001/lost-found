@@ -66,25 +66,47 @@ const extractKeywords = (text) => {
 };
 
 /**
+ * Extract building/area from location string
+ */
+const extractBuilding = (loc) => {
+    if (!loc) return null;
+    const match = loc.match(/(library|academic|hostel|cafeteria|sports|lab|block [a-d])/i);
+    return match ? match[0].toLowerCase() : null;
+};
+
+/**
+ * Pre-process item for faster matching
+ */
+const preProcessItem = (item) => {
+    if (item._processed) return item;
+
+    return {
+        ...item,
+        _processed: true,
+        _categoryLower: item.category ? item.category.toLowerCase() : '',
+        _colorLower: item.color ? item.color.toLowerCase().trim() : '',
+        _locationLower: item.location ? item.location.toLowerCase() : '',
+        _building: extractBuilding(item.location),
+        _date: item.createdAt ? (item.createdAt.toDate ? item.createdAt.toDate() : new Date(item.createdAt)) : null,
+        _keywords: extractKeywords(item.description)
+    };
+};
+
+/**
  * Calculate location proximity score
  */
-const calculateLocationScore = (loc1, loc2) => {
+const calculateLocationScore = (item1, item2) => {
+    // Use pre-processed values if available
+    const loc1 = item1._processed ? item1._locationLower : item1.location?.toLowerCase();
+    const loc2 = item2._processed ? item2._locationLower : item2.location?.toLowerCase();
+
     if (!loc1 || !loc2) return 0;
 
-    const location1 = loc1.toLowerCase();
-    const location2 = loc2.toLowerCase();
-
     // Exact match
-    if (location1 === location2) return 20;
+    if (loc1 === loc2) return 20;
 
-    // Extract building/area keywords
-    const extractBuilding = (loc) => {
-        const match = loc.match(/(library|academic|hostel|cafeteria|sports|lab|block [a-d])/i);
-        return match ? match[0].toLowerCase() : null;
-    };
-
-    const building1 = extractBuilding(location1);
-    const building2 = extractBuilding(location2);
+    const building1 = item1._processed ? item1._building : extractBuilding(loc1);
+    const building2 = item2._processed ? item2._building : extractBuilding(loc2);
 
     // Same building
     if (building1 && building2 && building1 === building2) return 15;
@@ -92,7 +114,7 @@ const calculateLocationScore = (loc1, loc2) => {
     // Check if both contain common area words
     const commonWords = ['library', 'academic', 'hostel', 'cafeteria', 'sports'];
     for (const word of commonWords) {
-        if (location1.includes(word) && location2.includes(word)) {
+        if (loc1.includes(word) && loc2.includes(word)) {
             return 10;
         }
     }
@@ -103,11 +125,11 @@ const calculateLocationScore = (loc1, loc2) => {
 /**
  * Calculate time proximity score
  */
-const calculateTimeScore = (date1, date2) => {
-    if (!date1 || !date2) return 0;
+const calculateTimeScore = (item1, item2) => {
+    const d1 = item1._processed ? item1._date : (item1.createdAt?.toDate ? item1.createdAt.toDate() : new Date(item1.createdAt));
+    const d2 = item2._processed ? item2._date : (item2.createdAt?.toDate ? item2.createdAt.toDate() : new Date(item2.createdAt));
 
-    const d1 = date1?.toDate ? date1.toDate() : new Date(date1);
-    const d2 = date2?.toDate ? date2.toDate() : new Date(date2);
+    if (!d1 || !d2 || isNaN(d1.getTime()) || isNaN(d2.getTime())) return 0;
 
     const diffMs = Math.abs(d1 - d2);
     const diffDays = diffMs / (1000 * 60 * 60 * 24);
@@ -123,19 +145,24 @@ const calculateTimeScore = (date1, date2) => {
 /**
  * Calculate keyword match score
  */
-const calculateKeywordScore = (desc1, desc2) => {
-    const keywords1 = extractKeywords(desc1);
-    const keywords2 = extractKeywords(desc2);
+const calculateKeywordScore = (item1, item2) => {
+    const keywords1 = item1._processed ? item1._keywords : extractKeywords(item1.description);
+    const keywords2 = item2._processed ? item2._keywords : extractKeywords(item2.description);
 
     if (keywords1.size === 0 || keywords2.size === 0) return 0;
 
     // Find common keywords
-    const common = new Set([...keywords1].filter(k => keywords2.has(k)));
+    // Optimization: Iterate over the smaller set
+    const [smaller, larger] = keywords1.size < keywords2.size ? [keywords1, keywords2] : [keywords2, keywords1];
+    let commonCount = 0;
+    for (const k of smaller) {
+        if (larger.has(k)) commonCount++;
+    }
 
-    if (common.size === 0) return 0;
+    if (commonCount === 0) return 0;
 
     // Score based on percentage of matching keywords
-    const matchPercentage = common.size / Math.min(keywords1.size, keywords2.size);
+    const matchPercentage = commonCount / smaller.size;
     return Math.min(matchPercentage * 10, 10);
 };
 
@@ -145,14 +172,19 @@ const calculateKeywordScore = (desc1, desc2) => {
 export const calculateMatchScore = (item1, item2) => {
     let score = 0;
 
+    // Prepare values
+    const cat1 = item1._processed ? item1._categoryLower : item1.category?.toLowerCase();
+    const cat2 = item2._processed ? item2._categoryLower : item2.category?.toLowerCase();
+
+    const color1 = item1._processed ? item1._colorLower : item1.color?.toLowerCase().trim();
+    const color2 = item2._processed ? item2._colorLower : item2.color?.toLowerCase().trim();
+
     // 1. Category Match (30 points)
-    if (item1.category && item2.category) {
-        if (item1.category.toLowerCase() === item2.category.toLowerCase()) {
+    if (cat1 && cat2) {
+        if (cat1 === cat2) {
             score += 30;
         } else {
             // Partial category match (e.g., "Phone" vs "Electronics")
-            const cat1 = item1.category.toLowerCase();
-            const cat2 = item2.category.toLowerCase();
             if (cat1.includes(cat2) || cat2.includes(cat1)) {
                 score += 15;
             }
@@ -160,22 +192,24 @@ export const calculateMatchScore = (item1, item2) => {
     }
 
     // 2. Color Match (25 points)
-    if (item1.color && item2.color) {
-        if (item1.color.toLowerCase() === item2.color.toLowerCase()) {
+    if (color1 && color2) {
+        if (color1 === color2) {
             score += 25;
-        } else if (areSimilarColors(item1.color, item2.color)) {
-            score += 15; // Partial match for similar colors
+        } else {
+            if (areSimilarColors(color1, color2)) {
+                score += 15;
+            }
         }
     }
 
     // 3. Location Proximity (20 points)
-    score += calculateLocationScore(item1.location, item2.location);
+    score += calculateLocationScore(item1, item2);
 
     // 4. Time Window (15 points)
-    score += calculateTimeScore(item1.createdAt, item2.createdAt);
+    score += calculateTimeScore(item1, item2);
 
     // 5. Description Keywords (10 points)
-    score += calculateKeywordScore(item1.description, item2.description);
+    score += calculateKeywordScore(item1, item2);
 
     return Math.round(score);
 };
@@ -189,12 +223,19 @@ export const findMatches = async (item, minScore = 40) => {
         const oppositeType = item.type === 'lost' ? 'found' : 'lost';
         const allItems = await getItems({ type: oppositeType, status: 'active' });
 
+        // Pre-process the source item once
+        const sourceItem = preProcessItem(item);
+
         // Calculate match scores
-        const matches = allItems.map(candidateItem => ({
-            item: candidateItem,
-            score: calculateMatchScore(item, candidateItem),
-            sourceItem: item
-        }));
+        // Pre-process candidate items and calculate score
+        const matches = allItems.map(candidateItem => {
+            const processedCandidate = preProcessItem(candidateItem);
+            return {
+                item: candidateItem,
+                score: calculateMatchScore(sourceItem, processedCandidate),
+                sourceItem: item
+            };
+        });
 
         // Filter by minimum score and sort by score descending
         return matches
@@ -213,10 +254,14 @@ export const findMatches = async (item, minScore = 40) => {
 export const getAllMatches = async (minScore = 60) => {
     try {
         // Get all active lost and found items
-        const [lostItems, foundItems] = await Promise.all([
+        const [lostItemsRaw, foundItemsRaw] = await Promise.all([
             getItems({ type: 'lost', status: 'active' }),
             getItems({ type: 'found', status: 'active' })
         ]);
+
+        // Pre-process all items
+        const lostItems = lostItemsRaw.map(preProcessItem);
+        const foundItems = foundItemsRaw.map(preProcessItem);
 
         const matches = [];
 
