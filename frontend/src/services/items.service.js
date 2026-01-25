@@ -5,6 +5,7 @@ import {
     getDoc,
     getDocs,
     updateDoc,
+    increment,
     query,
     where,
     orderBy,
@@ -181,14 +182,10 @@ export const updateItemStatus = async (itemId, status) => {
 export const incrementItemViews = async (itemId) => {
     try {
         const itemRef = doc(db, ITEMS_COLLECTION, itemId);
-        const itemDoc = await getDoc(itemRef);
 
-        if (itemDoc.exists()) {
-            const currentViews = itemDoc.data().views || 0;
-            await updateDoc(itemRef, {
-                views: currentViews + 1
-            });
-        }
+        await updateDoc(itemRef, {
+            views: increment(1)
+        });
     } catch (error) {
         console.error('Error incrementing views:', error);
     }
