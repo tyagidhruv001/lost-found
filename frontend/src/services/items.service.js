@@ -101,9 +101,9 @@ export const getItems = async (filters = {}) => {
         }
 
         // Order by creation date (newest first)
-        // NOTE: Temporarily disabled to avoid composite index requirement
-        // Firebase needs a composite index for: status + orderBy(createdAt)
-        // q = query(q, orderBy('createdAt', 'desc'));
+        // NOTE: This requires a composite index for: status + orderBy(createdAt)
+        // Ensure the Firestore index is created.
+        q = query(q, orderBy('createdAt', 'desc'));
 
         // Limit results
         if (filters.limit) {
@@ -118,13 +118,6 @@ export const getItems = async (filters = {}) => {
                 id: doc.id,
                 ...doc.data()
             });
-        });
-
-        // Sort in memory by createdAt (newest first)
-        items.sort((a, b) => {
-            const aTime = a.createdAt?.toDate?.() || new Date(0);
-            const bTime = b.createdAt?.toDate?.() || new Date(0);
-            return bTime - aTime;
         });
 
         return items;
