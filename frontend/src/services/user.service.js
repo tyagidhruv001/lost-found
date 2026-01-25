@@ -64,25 +64,31 @@ export const uploadUserDocuments = async (userId, idCardFile, profilePhotoFile) 
     try {
         const uploads = {};
 
+        const uploadPromises = [];
+
         // Upload ID card
         if (idCardFile) {
-            const idCardResult = await uploadImageDirect(
+            uploadPromises.push(uploadImageDirect(
                 idCardFile,
                 `users/${userId}/documents`
-            );
-            uploads.idCardUrl = idCardResult.url;
-            uploads.idCardPublicId = idCardResult.publicId;
+            ).then(idCardResult => {
+                uploads.idCardUrl = idCardResult.url;
+                uploads.idCardPublicId = idCardResult.publicId;
+            }));
         }
 
         // Upload profile photo
         if (profilePhotoFile) {
-            const profileResult = await uploadImageDirect(
+            uploadPromises.push(uploadImageDirect(
                 profilePhotoFile,
                 `users/${userId}/profile`
-            );
-            uploads.profilePhotoUrl = profileResult.url;
-            uploads.profilePhotoPublicId = profileResult.publicId;
+            ).then(profileResult => {
+                uploads.profilePhotoUrl = profileResult.url;
+                uploads.profilePhotoPublicId = profileResult.publicId;
+            }));
         }
+
+        await Promise.all(uploadPromises);
 
         // Update user document with image URLs
         const userRef = doc(db, COLLECTIONS.USERS, userId);
