@@ -1,43 +1,53 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { api } from '../services/api';
+import itemsService from '../services/items.service';
+
+// Helper functions for Latest Activity
+const getEmojiForCategory = (category) => {
+    const emojiMap = {
+        'electronics': '🎧',
+        'accessories': '🎒',
+        'keys': '🔑',
+        'wallet': '👛',
+        'phone': '📱',
+        'laptop': '💻',
+        'books': '📚',
+        'clothing': '👕',
+        'jewelry': '💍',
+        'cards': '💳',
+        'id-cards': '🪪',
+        'bags': '🎒',
+        'stationery': '✏️',
+        'other': '📦'
+    };
+    return emojiMap[category?.toLowerCase()] || '📦';
+};
+
+const getColorForCategory = (category) => {
+    const colorMap = {
+        'electronics': 'bg-blue-500/30',
+        'accessories': 'bg-purple-500/30',
+        'keys': 'bg-yellow-500/30',
+        'wallet': 'bg-pink-500/30',
+        'phone': 'bg-cyan-500/30',
+        'laptop': 'bg-indigo-500/30',
+        'books': 'bg-orange-500/30',
+        'clothing': 'bg-red-500/30',
+        'jewelry': 'bg-emerald-500/30',
+        'cards': 'bg-teal-500/30',
+        'id-cards': 'bg-slate-500/30',
+        'bags': 'bg-purple-500/30',
+        'stationery': 'bg-amber-500/30',
+        'other': 'bg-gray-500/30'
+    };
+    return colorMap[category?.toLowerCase()] || 'bg-gray-500/30';
+};
 
 const Landing = () => {
     const navigate = useNavigate();
 
     // State for latest activity - will be populated from API
-    const [latestActivity, setLatestActivity] = useState([
-        {
-            id: 1,
-            emoji: '🎧',
-            bgColor: 'bg-blue-500/30',
-            title: 'Sony WH-1000XM4',
-            status: 'Found',
-            statusColor: 'text-green-400',
-            location: 'Library Block A',
-            timestamp: new Date(Date.now() - 2 * 60 * 1000) // 2 minutes ago
-        },
-        {
-            id: 2,
-            emoji: '🎒',
-            bgColor: 'bg-purple-500/30',
-            title: 'Black Nike Backpack',
-            status: 'Lost',
-            statusColor: 'text-red-400',
-            location: 'Canteen Area',
-            timestamp: new Date(Date.now() - 15 * 60 * 1000) // 15 minutes ago
-        },
-        {
-            id: 3,
-            emoji: '🔑',
-            bgColor: 'bg-yellow-500/30',
-            title: 'Dorm Keys (Room 304)',
-            status: 'Reunited',
-            statusColor: 'text-green-400',
-            location: null,
-            timestamp: new Date(Date.now() - 60 * 60 * 1000) // 1 hour ago
-        }
-    ]);
+    const [latestActivity, setLatestActivity] = useState([]);
 
     // Helper function to format relative time
     const getRelativeTime = (timestamp) => {
@@ -52,17 +62,25 @@ const Landing = () => {
 
     // TODO: Fetch latest activity from backend API
     useEffect(() => {
-        // Placeholder for API call
-        // const fetchLatestActivity = async () => {
-        //     try {
-        //         const response = await fetch('/api/items/latest-activity');
-        //         const data = await response.json();
-        //         setLatestActivity(data);
-        //     } catch (error) {
-        //         console.error('Error fetching latest activity:', error);
-        //     }
-        // };
-        // fetchLatestActivity();
+        const fetchLatestActivity = async () => {
+            try {
+                const items = await itemsService.getItems({ limit: 3 });
+                const activity = items.map(item => ({
+                    id: item.id,
+                    emoji: getEmojiForCategory(item.category),
+                    bgColor: getColorForCategory(item.category),
+                    title: item.title,
+                    status: item.status === 'claimed' ? 'Reunited' : (item.type === 'lost' ? 'Lost' : 'Found'),
+                    statusColor: item.status === 'claimed' ? 'text-green-400' : (item.type === 'lost' ? 'text-red-400' : 'text-green-400'),
+                    location: item.location,
+                    timestamp: item.createdAt?.toDate ? item.createdAt.toDate() : (item.createdAt ? new Date(item.createdAt) : new Date())
+                }));
+                setLatestActivity(activity);
+            } catch (error) {
+                console.error('Error fetching latest activity:', error);
+            }
+        };
+        fetchLatestActivity();
 
         // Optional: Set up polling for real-time updates every 30 seconds
         // const interval = setInterval(fetchLatestActivity, 30000);
