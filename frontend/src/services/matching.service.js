@@ -187,7 +187,12 @@ export const findMatches = async (item, minScore = 40) => {
     try {
         // Get all items of opposite type
         const oppositeType = item.type === 'lost' ? 'found' : 'lost';
-        const allItems = await getItems({ type: oppositeType, status: 'active' });
+        // Limit to 100 recent items to prevent unbounded fetching
+        const allItems = await getItems({
+            type: oppositeType,
+            status: 'active',
+            limit: 100
+        });
 
         // Calculate match scores
         const matches = allItems.map(candidateItem => ({

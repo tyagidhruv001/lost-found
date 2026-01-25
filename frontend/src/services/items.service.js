@@ -100,17 +100,32 @@ export const getItems = async (filters = {}) => {
             q = query(q, where('reportedBy.uid', '==', filters.reportedBy));
         }
 
-        // Order by creation date (newest first)
-        // NOTE: Temporarily disabled to avoid composite index requirement
-        // Firebase needs a composite index for: status + orderBy(createdAt)
-        // q = query(q, orderBy('createdAt', 'desc'));
+        let querySnapshot;
 
-        // Limit results
+        // Apply ordering and limit if a limit is requested
         if (filters.limit) {
-            q = query(q, limit(filters.limit));
-        }
+            // Attempt to use orderBy with limit
+            const qWithOrder = query(q, orderBy('createdAt', 'desc'), limit(filters.limit));
 
-        const querySnapshot = await getDocs(q);
+            try {
+                querySnapshot = await getDocs(qWithOrder);
+            } catch (error) {
+                // Check for missing index error (failed-precondition)
+                if (error.code === 'failed-precondition') {
+                    console.warn('Composite index missing. Falling back to unordered limited fetch.', error.message);
+                    // Fallback: apply limit without ordering (may return random items)
+                    const qLimited = query(q, limit(filters.limit));
+                    querySnapshot = await getDocs(qLimited);
+                } else {
+                    throw error;
+                }
+            }
+        } else {
+            // No limit requested: fetch all matching items (unordered)
+            // We sort in memory below, so database ordering is not strictly required
+            // and avoiding it prevents index errors/latency for general queries
+            querySnapshot = await getDocs(q);
+        }
         const items = [];
 
         querySnapshot.forEach((doc) => {
