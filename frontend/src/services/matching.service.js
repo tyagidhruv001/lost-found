@@ -65,6 +65,8 @@ const extractKeywords = (text) => {
     return new Set(words);
 };
 
+const BUILDING_REGEX = /(library|academic|hostel|cafeteria|sports|lab|block [a-d])/i;
+
 /**
  * Calculate location proximity score
  */
@@ -79,7 +81,7 @@ const calculateLocationScore = (loc1, loc2) => {
 
     // Extract building/area keywords
     const extractBuilding = (loc) => {
-        const match = loc.match(/(library|academic|hostel|cafeteria|sports|lab|block [a-d])/i);
+        const match = loc.match(BUILDING_REGEX);
         return match ? match[0].toLowerCase() : null;
     };
 
