@@ -1,4 +1,5 @@
 import { mockDb } from './mockDb';
+import { getLatestActivity as fetchRealLatestActivity } from './firestore.service';
 
 const delay = (ms = 800) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -123,65 +124,8 @@ export const api = {
     },
 
     getLatestActivity: async (limit = 3) => {
-        await delay(500);
-        const items = mockDb.getItems();
-
-        // Get most recent items sorted by date
-        const recentItems = [...items]
-            .sort((a, b) => new Date(b.date) - new Date(a.date))
-            .slice(0, limit);
-
-        // Transform to landing page format
-        return recentItems.map(item => ({
-            id: item.id,
-            emoji: getEmojiForCategory(item.category),
-            bgColor: getColorForCategory(item.category),
-            title: item.title,
-            status: item.type === 'lost' ? 'Lost' : 'Found',
-            statusColor: item.type === 'lost' ? 'text-red-400' : 'text-green-400',
-            location: item.location,
-            timestamp: new Date(item.date)
-        }));
+        // Switch to real Firestore implementation
+        return await fetchRealLatestActivity(limit);
     }
 };
 
-// Helper functions for Latest Activity
-const getEmojiForCategory = (category) => {
-    const emojiMap = {
-        'electronics': '🎧',
-        'accessories': '🎒',
-        'keys': '🔑',
-        'wallet': '👛',
-        'phone': '📱',
-        'laptop': '💻',
-        'books': '📚',
-        'clothing': '👕',
-        'jewelry': '💍',
-        'cards': '💳',
-        'id-cards': '🪪',
-        'bags': '🎒',
-        'stationery': '✏️',
-        'other': '📦'
-    };
-    return emojiMap[category?.toLowerCase()] || '📦';
-};
-
-const getColorForCategory = (category) => {
-    const colorMap = {
-        'electronics': 'bg-blue-500/30',
-        'accessories': 'bg-purple-500/30',
-        'keys': 'bg-yellow-500/30',
-        'wallet': 'bg-pink-500/30',
-        'phone': 'bg-cyan-500/30',
-        'laptop': 'bg-indigo-500/30',
-        'books': 'bg-orange-500/30',
-        'clothing': 'bg-red-500/30',
-        'jewelry': 'bg-emerald-500/30',
-        'cards': 'bg-teal-500/30',
-        'id-cards': 'bg-slate-500/30',
-        'bags': 'bg-purple-500/30',
-        'stationery': 'bg-amber-500/30',
-        'other': 'bg-gray-500/30'
-    };
-    return colorMap[category?.toLowerCase()] || 'bg-gray-500/30';
-};

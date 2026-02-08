@@ -54,6 +54,9 @@ const getColorForCategory = (category) => {
         'clothing': 'bg-red-500/30',
         'jewelry': 'bg-emerald-500/30',
         'cards': 'bg-teal-500/30',
+        'id-cards': 'bg-slate-500/30',
+        'bags': 'bg-purple-500/30',
+        'stationery': 'bg-amber-500/30',
         'other': 'bg-gray-500/30'
     };
     return colorMap[category?.toLowerCase()] || 'bg-gray-500/30';

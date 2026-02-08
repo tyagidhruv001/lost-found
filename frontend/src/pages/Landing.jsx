@@ -50,23 +50,22 @@ const Landing = () => {
         return `${Math.floor(diff / 86400)}d ago`;
     };
 
-    // TODO: Fetch latest activity from backend API
+    // Fetch latest activity from backend API
     useEffect(() => {
-        // Placeholder for API call
-        // const fetchLatestActivity = async () => {
-        //     try {
-        //         const response = await fetch('/api/items/latest-activity');
-        //         const data = await response.json();
-        //         setLatestActivity(data);
-        //     } catch (error) {
-        //         console.error('Error fetching latest activity:', error);
-        //     }
-        // };
-        // fetchLatestActivity();
+        const fetchLatestActivity = async () => {
+            try {
+                const data = await api.getLatestActivity();
+                setLatestActivity(data);
+            } catch (error) {
+                console.error('Error fetching latest activity:', error);
+            }
+        };
 
-        // Optional: Set up polling for real-time updates every 30 seconds
-        // const interval = setInterval(fetchLatestActivity, 30000);
-        // return () => clearInterval(interval);
+        fetchLatestActivity();
+
+        // Set up polling for real-time updates every 30 seconds
+        const interval = setInterval(fetchLatestActivity, 30000);
+        return () => clearInterval(interval);
     }, []);
 
     const handleGetStarted = () => {
